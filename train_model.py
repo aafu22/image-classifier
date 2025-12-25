@@ -73,5 +73,6 @@ model.fit(
 # ----------------------------
 # SAVE MODEL
 # ----------------------------
-model.save("real_footwear_model.h5")
+model.save("real_footwear_model.keras")
+
 print("✅ Real footwear model saved!")
