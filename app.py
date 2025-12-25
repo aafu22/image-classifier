@@ -3,73 +3,73 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 
-# -----------------------------
+# ---------------------------------
 # PAGE CONFIG
-# -----------------------------
+# ---------------------------------
 st.set_page_config(
     page_title="Footwear Image Classifier",
-    page_icon="👟",
     layout="centered"
 )
 
-# -----------------------------
-# LOAD MODEL (CACHED)
-# -----------------------------
+st.title("👟 Footwear Image Classifier")
+st.write("Upload an image of footwear and get predictions")
+
+# ---------------------------------
+# LOAD MODEL (Keras 3 safe)
+# ---------------------------------
 @st.cache_resource
 def load_model():
     return tf.keras.models.load_model("real_footwear_model.keras")
 
-
 model = load_model()
 
-# IMPORTANT: Order must match training class_indices
+# IMPORTANT: Must match training folder order
 class_names = ["Boot 👢", "Sandal 🩴", "Shoe 👟"]
 
-# -----------------------------
-# UI
-# -----------------------------
-st.title("👟 Footwear Image Classifier")
-st.write(
-    "Upload a **real footwear image** and the model will predict whether it is "
-    "**Boot, Sandal, or Shoe**."
-)
+# ---------------------------------
+# IMAGE PREPROCESSING
+# ---------------------------------
+def preprocess_image(image: Image.Image):
+    image = image.convert("RGB")          # Ensure 3 channels
+    image = image.resize((224, 224))      # MobileNet input size
+    img_array = np.array(image) / 255.0   # Normalize
+    img_array = np.expand_dims(img_array, axis=0)
+    return img_array
 
+# ---------------------------------
+# FILE UPLOAD
+# ---------------------------------
 uploaded_file = st.file_uploader(
-    "Choose an image",
+    "Upload footwear image",
     type=["jpg", "jpeg", "png"]
 )
 
-# -----------------------------
-# PREDICTION
-# -----------------------------
 if uploaded_file is not None:
-    try:
-        # Load and preprocess image
-        image = Image.open(uploaded_file).convert("RGB")
-        image = image.resize((224, 224))
+    image = Image.open(uploaded_file)
 
-        # Show image (UPDATED: no deprecated params)
-        st.image(image, caption="Uploaded Image", width=400)
+    st.image(image, caption="Uploaded Image", width=300)
 
-        img_array = np.array(image) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
+    # Preprocess
+    processed_image = preprocess_image(image)
 
-        # Predict
-        prediction = model.predict(img_array)
-        predicted_index = np.argmax(prediction)
-        confidence = prediction[0][predicted_index]
+    # Predict
+    predictions = model.predict(processed_image)
+    predicted_index = np.argmax(predictions)
+    confidence = np.max(predictions) * 100
 
-        # Show result
-        st.success(
-            f"Prediction: **{class_names[predicted_index]}**\n\n"
-            f"Confidence: **{confidence:.2f}**"
-        )
+    predicted_class = class_names[predicted_index]
 
-        # Show confidence scores
-        st.subheader("Prediction Confidence")
-        for i, prob in enumerate(prediction[0]):
-            st.write(f"{class_names[i]}: {prob:.2f}")
+    # ---------------------------------
+    # RESULTS
+    # ---------------------------------
+    st.markdown("### 🧠 Prediction Result")
+    st.success(f"**{predicted_class}**")
+    st.info(f"Prediction Confidence: **{confidence:.2f}%**")
 
-    except Exception as e:
-        st.error("❌ Error while processing the image.")
-        st.exception(e)
+    # Show all class probabilities
+    st.markdown("### 📊 Class Probabilities")
+    for i, class_name in enumerate(class_names):
+        st.write(f"{class_name}: {predictions[0][i]*100:.2f}%")
+
+else:
+    st.warning("Please upload an image to start prediction.")
